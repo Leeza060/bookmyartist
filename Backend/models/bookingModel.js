@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
-const {ObjectId} = mongoose.Schema
+const {ObjectId} = mongoose.Schema.Types
 
 const bookingSchema = new mongoose.Schema(
   {
     client: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: ObjectId,
       ref: "User",
       required: true,
     },
     artist: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: ObjectId,
       ref: "User",
       required: true,
     },
