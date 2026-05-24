@@ -77,13 +77,13 @@ exports.updateArtistProfile = async (req, res) => {
       return res.status(404).json({ error: "Artist not found" });
     }
 
-    const { username, phoneNumber, category, bio, basePrice } = req.body;
+    const { username, phoneNumber, category, bio, pricePerHour } = req.body;
 
     if (username !== undefined) artist.username = username;
     if (phoneNumber !== undefined) artist.phoneNumber = phoneNumber;
     if (category !== undefined) artist.category = category;
     if (bio !== undefined) artist.bio = bio;
-    if (basePrice !== undefined) artist.basePrice = basePrice;
+    if (pricePerHour !== undefined) artist.pricePerHour = pricePerHour;
     if (req.file) artist.profileImage = req.file.path;
 
     await artist.save();

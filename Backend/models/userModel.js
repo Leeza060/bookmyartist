@@ -45,12 +45,41 @@ const userSchema = new mongoose.Schema(
 
     bio: {
       type: String,
+      default: "",
     },
 
-    basePrice: {
+    pricePerHour: {
       type: Number,
       required: function () {
         return this.role == "artist";
+      },
+      min: 0,
+    },
+
+    genres: {
+      type: [String],
+      default: [],
+    },
+
+    specialties: {
+      type: [String],
+      default: [],
+    },
+
+    languages: {
+      type: [String],
+      default: [],
+    },
+
+    location: {
+      lat: {
+        type: Number,
+        default: null,
+      },
+
+      lng: {
+        type: Number,
+        default: null,
       },
     },
 
@@ -66,12 +95,12 @@ const userSchema = new mongoose.Schema(
     },
 
     //Artist approval/verification by admin
-    adminApproved: {
-      type: Boolean,
-      default: function () {
-        return this.role !== "artist";
-      },
-    },
+    // adminApproved: {
+    //   type: Boolean,
+    //   default: function () {
+    //     return this.role !== "artist";
+    //   },
+    // },
 
     verificationStatus: {
       type: String,
@@ -83,7 +112,7 @@ const userSchema = new mongoose.Schema(
 
     adminApprovedAt: {
       type: Date,
-      default: null
+      default: null,
     },
   },
   { timestamps: true },

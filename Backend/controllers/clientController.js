@@ -69,9 +69,9 @@ exports.getClientById = async (req, res) => {
  
 exports.updateArtist = async (req, res) => {
   try {
-    const { username, email, phoneNumber, password, role, category, bio, basePrice, profileImage } = req.body;
+    const { username, email, phoneNumber, password, role, category, bio, pricePerHour, profileImage } = req.body;
 
-    if (role === "artist" && (!category || !basePrice)) {
+    if (role === "artist" && (!category || !pricePerHour)) {
       return res.status(400).json({ error: "Category and Base Price required for Artist." });
     }
     //fake admin roles prevention
@@ -110,7 +110,7 @@ exports.updateArtist = async (req, res) => {
 
       category: category,
       bio: bio,
-      basePrice: basePrice,
+      pricePerHour: pricePerHour,
       profileImage: profileImage,
       emailVerified: role == "artist" ? false : true,
     });

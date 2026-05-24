@@ -1,9 +1,20 @@
 const UserModel = require("../models/userModel");
 const TokenModel = require("../models/tokenModel");
+
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+
 const sendEmail = require("../middleware/emailSender");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+
+//validators
+const { validateRegister, validateLogin } = require("../utils/validators/authValidator");
+
+//helpers
+const hashPassword = require("../utils/helpers/hashPassword");
+const generateToken = require("../utils/helpers/generateToken");
+const verificationEmail = require("../utils/helpers/verificationEmail");
+const resetPasswordEmail = require("../utils/helpers/resetPasswordEmail");
 
 exports.register = async (req, res) => {
   // if (!req.file) {
@@ -15,30 +26,13 @@ exports.register = async (req, res) => {
 
     const userRole = role || "client";
 
-    //common validations
-    if (!username || !email || !password || !phoneNumber) {
-      return res.status(400).json({ error: "Required fields missing" });
+    const validation = validateRegister(req.body);
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        errors: validation.errors,
+      });
     }
-
-    // if (userRole !== "admin") {
-    //   errors.phoneNumber = "Phone number is required";
-    // }
-
-    // if (userRole === "artist" && (!category || !basePrice)) {
-    //   return res.status(400).json({ error: "Artist details required" });
-    // }
-
-    // // Return validation errors early
-    // if (Object.keys(errors).length > 0) {
-    //   return res.status(400).json({ errors });
-    // }
-
-    // //fake admin roles prevention
-    // if (userRole === "admin") {
-    //   return res.status(403).json({ error: "Cannot register as admin" });
-    // }
-
-    //username available or not
 
     let usernameExists = await UserModel.findOne({ username });
     if (usernameExists) {
@@ -57,14 +51,8 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: "Phone number already registered." });
     }
 
-    // //DB validation errors
-    // if (Object.keys(errors).length > 0) {
-    //   return res.status(400).json({ errors });
-    // }
 
-    //encrypt password
-    let salt = await bcrypt.genSalt(Number(process.env.SALTROUNDS));
-    let hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await hashPassword(password);
 
     //save user in DB
     let userToRegister = await UserModel.create({
@@ -90,7 +78,7 @@ exports.register = async (req, res) => {
 
     //generate verification token
     let tokenToSend = await TokenModel.create({
-      token: crypto.randomBytes(16).toString("hex"),
+      token: generateToken(),
       user: userToRegister._id,
     });
 
@@ -102,58 +90,7 @@ exports.register = async (req, res) => {
       to: email,
       subject: "Verification email",
       text: "Thank you for registering",
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-</head>
-<body style="margin:0; padding:0; background-color:#fdf2f8; font-family:Arial, sans-serif;">
-
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
-    <tr>
-      <td align="center">
-
-        <table width="400" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:12px; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
-
-          <tr>
-            <td align="center" style="padding-bottom:20px;">
-              <h2 style="margin:0; color:#db2777;">Verify Your Email 💌</h2>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="color:#374151; font-size:14px; text-align:center; padding-bottom:20px;">
-              Thanks for signing up! Please click the button below to verify your email address.
-            </td>
-          </tr>
-
-          <tr>
-            <td align="center" style="padding-bottom:20px;">
-              <a href="${URL}" 
-                 style="background:#ec4899; color:#ffffff; padding:12px 24px; text-decoration:none; border-radius:8px; font-size:14px; display:inline-block;">
-                 Verify Email
-              </a>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="font-size:12px; color:#6b7280; text-align:center;">
-              If the button doesn't work, copy and paste this link:
-              <br/>
-              <a href="${URL}" style="color:#db2777;">${URL}</a>
-            </td>
-          </tr>
-
-        </table>
-
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>
-`,
+      html: verificationEmail(URL),
     });
 
     res.status(201).json({
@@ -469,9 +406,7 @@ exports.login = async (req, res) => {
       token,
       user: userResponse,
     });
-    
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };
-
