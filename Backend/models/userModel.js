@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6,
+      select: false,
     },
 
     phoneNumber: {
@@ -31,21 +32,52 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["client", "artist", "admin"],
-      // default: "client",
       required: true,
-    },
-
-    // 🔽 Only for artists
-    category: {
-      type: String, // singer, DJ, MC
-      required: function () {
-        return this.role == "artist";
-      },
     },
 
     bio: {
       type: String,
       default: "",
+    },
+
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
+    address: {
+      type: String,
+      default: "",
+    },
+
+    location: {
+      type: {
+        type: String,
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        required: true,
+      },
+
+      address: {
+        type: String,
+        default: "",
+      },
+    },
+
+    //email verification for both users
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    // only artists
+    category: {
+      type: String,
+      required: function () {
+        return this.role == "artist";
+      },
     },
 
     pricePerHour: {
@@ -70,37 +102,6 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-
-    location: {
-      lat: {
-        type: Number,
-        default: null,
-      },
-
-      lng: {
-        type: Number,
-        default: null,
-      },
-    },
-
-    profileImage: {
-      type: String,
-      default: "",
-    },
-
-    //email verification for both users
-    emailVerified: {
-      type: Boolean,
-      default: false,
-    },
-
-    //Artist approval/verification by admin
-    // adminApproved: {
-    //   type: Boolean,
-    //   default: function () {
-    //     return this.role !== "artist";
-    //   },
-    // },
 
     verificationStatus: {
       type: String,

@@ -21,11 +21,11 @@ exports.getAllCategories = async (req, res) => {
   if (!categories) {
     return res.status(400).json({ error: "Something went wrong" });
   }
-  res.send(categories);
+  res.status(200).json({count: categories.length, categories });
 };
 
 exports.getCategoryDetails = async (req, res) => {
-  let category = await CategoryModel.findById(req.params.id);
+  let category = await CategoryModel.findById(req.params.categoryId);
   if (!category) {
     return res.status(400).json({ error: "Something went wrong" });
   }
@@ -34,7 +34,7 @@ exports.getCategoryDetails = async (req, res) => {
 
 exports.updateCategory = async (req, res) => {
   let categoryToUpdate = await CategoryModel.findByIdAndUpdate(
-    req.params.id,
+    req.params.categoryId,
     {
       category_name: req.body.category_name,
     },
@@ -47,7 +47,7 @@ exports.updateCategory = async (req, res) => {
 };
 
 exports.deleteCategory = (req, res) => {
-  CategoryModel.findByIdAndDelete(req.params.id)
+  CategoryModel.findByIdAndDelete(req.params.categoryId)
     .then((deletedCategory) => {
       if (!deletedCategory) {
         return res.status(404).json({ error: "Category not found" });

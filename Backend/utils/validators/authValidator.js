@@ -29,7 +29,7 @@ const validateRegister = (data) => {
     }
 
     if (!pricePerHour) {
-      errors.push("Artist base price is required");
+      errors.push("Artist price per hour is required");
     }
   }
 

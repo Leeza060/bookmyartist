@@ -17,12 +17,9 @@ const verificationEmail = require("../utils/helpers/verificationEmail");
 const resetPasswordEmail = require("../utils/helpers/resetPasswordEmail");
 
 exports.register = async (req, res) => {
-  // if (!req.file) {
-  //   return res.status(400).json({ error: "Upload user image file" });
-  // }
 
   try {
-    const { username, email, phoneNumber, password, role, category, bio, basePrice } = req.body;
+    const { username, email, phoneNumber, password, role, category, bio, pricePerHour } = req.body;
 
     const userRole = role || "client";
 
@@ -64,12 +61,11 @@ exports.register = async (req, res) => {
 
       category,
       bio,
-      basePrice,
+      pricePerHour,
+      address: req.body.address || "",
 
       profileImage: req.file ? req.file.path : "", //middleware fileUpload
 
-      //email verification
-      emailVerified: false,
     });
 
     if (!userToRegister) {
