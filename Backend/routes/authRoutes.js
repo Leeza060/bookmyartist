@@ -8,7 +8,7 @@ router.post("/register", upload.single('profileImage'),register);
 router.post("/login", login)
 router.post("/resendverificationtoken", resendVerificationToken);
 
-router.get('/verify/:token', verifyEmail)
+router.get('/verifyemail/:token', verifyEmail)
 router.post('/forgetpassword', forgetPassword)
 router.post('/resetpassword/:token', resetPassword)
 

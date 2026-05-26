@@ -17,13 +17,17 @@ const verificationEmail = require("../utils/helpers/verificationEmail");
 const resetPasswordEmail = require("../utils/helpers/resetPasswordEmail");
 
 exports.register = async (req, res) => {
-
   try {
-    const { username, email, phoneNumber, password, role, category, bio, pricePerHour } = req.body;
+    const { username, email, phoneNumber, password, role, address, category, bio, pricePerHour } = req.body;
 
-    const userRole = role || "client";
+    //incase of Rita or rita in gmail as unique email
+    //email normalization
+    const normalizedEmail = email?.toLowerCase().trim();
 
-    const validation = validateRegister(req.body);
+    const validation = validateRegister({
+      ...req.body,
+      email: normalizedEmail,
+    });
 
     if (!validation.isValid) {
       return res.status(400).json({
@@ -31,23 +35,39 @@ exports.register = async (req, res) => {
       });
     }
 
-    let usernameExists = await UserModel.findOne({ username });
-    if (usernameExists) {
-      return res.status(400).json({ error: "Username already registered." });
-    }
+    const existingUser = await UserModel.findOne({
+      $or: [{ username }, { email: normalizedEmail }, { phoneNumber }],
+    });
 
-    //email registered or not
-    let emailExists = await UserModel.findOne({ email });
-    if (emailExists) {
-      return res.status(400).json({ error: "Email already registered." });
-    }
+    if (existingUser) {
+      const errors = [];
 
-    //phone number registered or not
-    let phoneNumberExists = await UserModel.findOne({ phoneNumber });
-    if (phoneNumberExists) {
-      return res.status(400).json({ error: "Phone number already registered." });
-    }
+      if (existingUser.username === username) {
+        errors.push({
+          field: "username",
+          message: "Username already exists",
+        });
+      }
 
+      if (existingUser.email === normalizedEmail) {
+        errors.push({
+          field: "email",
+          message: "Email already exists",
+        });
+      }
+
+      if (existingUser.phoneNumber === phoneNumber) {
+        errors.push({
+          field: "phoneNumber",
+          message: "Phone number already exists",
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        errors,
+      });
+    }
 
     const hashedPassword = await hashPassword(password);
 
@@ -57,15 +77,14 @@ exports.register = async (req, res) => {
       email,
       phoneNumber,
       password: hashedPassword,
-      role: userRole,
+      role,
 
       category,
       bio,
       pricePerHour,
-      address: req.body.address || "",
+      address: address || "",
 
       profileImage: req.file ? req.file.path : "", //middleware fileUpload
-
     });
 
     if (!userToRegister) {
@@ -79,7 +98,7 @@ exports.register = async (req, res) => {
     });
 
     //send token in email
-    let URL = `http://localhost:5001/verify/${tokenToSend.token}`;
+    let URL = `http://localhost:5001/api/auth/verifyemail/${tokenToSend.token}`;
 
     sendEmail({
       from: "noreply@something.com",
@@ -89,10 +108,56 @@ exports.register = async (req, res) => {
       html: verificationEmail(URL),
     });
 
+    // remove password before response
+    const userResponse = userToRegister.toObject();
+
+    delete userResponse.password;
+
     res.status(201).json({
-      message: `${userRole} registered successfully!`,
+      message: `${role} registered successfully!`,
       userToRegister,
       tokenToSend,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    //check is token is valid or not
+    let tokenData = await TokenModel.findOne({ token });
+
+    if (!tokenData) {
+      return res.status(400).json({ error: "Invalid or expired token!" });
+    }
+
+    //find user associated with token
+    let user = await UserModel.findById(tokenData.user);
+
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    //check if user is already verified
+    if (user.emailVerified) {
+      return res.status(400).json({ error: `${user.role} email already verified` });
+    }
+
+    //verify user
+    user.emailVerified = true;
+
+    //save user
+    user = await user.save();
+
+    // delete token (IMPORTANT)
+    await TokenModel.deleteOne({ _id: tokenData._id });
+
+    //send message to user
+    res.status(200).json({
+      message: `User verified successfullly`,
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -121,7 +186,7 @@ exports.resendVerificationToken = async (req, res) => {
     });
 
     //send token in email
-    let URL = `http://localhost:5001/verify/${tokenToSend.token}`;
+    let URL = `http://localhost:5001/api/auth/verifyemail/${tokenToSend.token}`;
 
     await sendEmail({
       from: "noreply@something.com",
@@ -191,49 +256,10 @@ exports.resendVerificationToken = async (req, res) => {
   }
 };
 
-exports.verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    //check is token is valid or not
-    let tokenData = await TokenModel.findOne({ token });
-    if (!tokenData) {
-      return res.status(400).json({ error: "Invalid or expired token!" });
-    }
-
-    //find user associated with token
-    let user = await UserModel.findById(tokenData.user);
-
-    if (!user) {
-      return res.status(400).json({ error: "User not found" });
-    }
-
-    //check if user is already verified
-    if (user.emailVerified) {
-      return res.status(400).json({ error: `${user.role} email already verified` });
-    }
-
-    //verify user
-    user.emailVerified = true;
-
-    //save user
-    user = await user.save();
-
-    // delete token (IMPORTANT)
-    await TokenModel.deleteOne({ _id: tokenData._id });
-
-    //send message to user
-    res.status(200).json({
-      message: `User verified successfullly`,
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-};
-
 exports.resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
+    const { password } = req.body;
 
     //check is token is valid or not
     let tokenData = await TokenModel.findOne({ token });
@@ -246,6 +272,18 @@ exports.resetPassword = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ error: "User not found" });
+    }
+
+    // validate password
+    if (!password) {
+      return res.status(400).json({
+        error: "Missing Password",
+      });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Password must at least be 6",
+      });
     }
 
     //encrypt password
@@ -283,7 +321,7 @@ exports.forgetPassword = async (req, res) => {
     });
 
     //send token in email
-    let URL = `http://localhost:5001/resetpassword/${tokenToSend.token}`;
+    let URL = `http://localhost:5001/api/auth/resetpassword/${tokenToSend.token}`;
 
     await sendEmail({
       from: "noreply@something.com",
@@ -367,24 +405,26 @@ exports.login = async (req, res) => {
     // 2. check user exists
     const user = await UserModel.findOne({ email });
     if (!user) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     // 3. check password
     const passwordMatch = await bcrypt.compare(password, user.password);
+
     if (!passwordMatch) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // (optional) check artist approval
-    if (user.role === "artist" && user.verificationStatus !== "approved") {
-      return res.status(403).json({ error: "Artist not approved yet" });
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: "Please verify your email first",
+      });
     }
 
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    // 4. generate login token
+    // 4. JWT Authentication Token for login authentication, protected routes, keeping user logged in
     const token = jwt.sign(
       {
         _id: user._id,

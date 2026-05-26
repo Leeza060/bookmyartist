@@ -7,3 +7,5 @@ const generateToken = () => {
 };
 
 module.exports = generateToken;
+
+//used for email verification, password reset and one time links
